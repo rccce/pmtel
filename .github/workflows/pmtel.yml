@@ -1,0 +1,39 @@
+name: pmtel build
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pmtel.c'
+      - '.github/workflows/pmtel.yml'
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pmtel (x86_64)
+        shell: bash
+        run: |
+          exec > >(tee -a build.log) 2>&1
+          set -euo pipefail
+          clang -O2 -Wall -Wextra -arch x86_64 -mmacosx-version-min=10.15 \
+            -framework CoreFoundation -o pmtel pmtel.c
+          file pmtel
+          file pmtel | grep -q 'x86_64'
+          codesign -s - -f pmtel
+          mkdir -p dist
+          cp pmtel dist/pmtel
+          chmod 755 dist/pmtel
+          tar -C dist -czf pmtel.tar.gz pmtel
+          ls -l pmtel.tar.gz
+      - name: Upload pmtel
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmtel
+          path: pmtel.tar.gz
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmtel-build-log
+          path: build.log
+          if-no-files-found: ignore
